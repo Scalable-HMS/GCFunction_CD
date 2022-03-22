@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-staging
+  labels:
+    app: project-staging
+spec:
+  replicas: 3
+  template:
+    metadata:
+      name: project-staging
+      labels:
+        app: project-staging
+    spec:
+      containers:
+      - name: project-staging
+        image: gcr.io/robust-heaven-344812/project-staging
+        resources:
+          limits:
+            cpu: 1
+            memory: 800M
+          requests:
+            cpu: .1
+            memory: 300M
+      imagePullPolicy: Always
+  selector:
+    matchLabels:
+      app: project-staging
