@@ -24,6 +24,7 @@ def get_kube_client(project, zone, cluster):
 
     return kubernetes.client.AppsV1Api(client)
 
+# reference: https://www.toptal.com/devops/better-google-cloud-continuous-deployment
 def deploy_to_k8s(event, context):
     """Background Cloud Function to be triggered by Pub/Sub.
     Args:
@@ -47,8 +48,6 @@ def deploy_to_k8s(event, context):
     """
     import base64
     import json
-    import os
-    import tempfile
     import logging
 
     print("""This Function was triggered by messageId {} published at {} to {}
@@ -59,23 +58,22 @@ def deploy_to_k8s(event, context):
         name = base64.b64decode(event['data']).decode('utf-8')
         data = json.loads(base64.b64decode(event['data']).decode('utf-8'))
         if "action" in data and "tag" in data:
-            if data["action"] == "INSERT" and "project-staging:latest" in data["tag"]:
-
-            # project = os.environ.get('PROJECT')
-            # zone = os.environ.get('ZONE')
-            # cluster = os.environ.get('CLUSTER')
-            # deployment = os.environ.get('DEPLOYMENT')
-            # deploy_image = os.environ.get('IMAGE')
-            # target_container = os.environ.get('CONTAINER')
+            if data["action"] == "INSERT" and "-staging:latest" in data["tag"]:
 
                 project = 'robust-heaven-344812'
                 zone = 'us-central1-c'
                 cluster = 'cluster-1'
+
+                # TODO: Since I can't connect to the new private cluster I can't create 
+                #       a deployment from kubectl, create one and edit this. Also the 
+                #       manifest I was using was valid for my test images, not the new 
+                #       microservices
                 deployment = 'project-staging'
-                deploy_image = 'gcr.io/robust-heaven-344812/project-staging'
                 # target_container = os.environ.get('CONTAINER')
 
                 v1 = get_kube_client(project, zone, cluster)
+
+                # TODO: Failing for the private cluster, worked fine for public
                 dep = v1.read_namespaced_deployment(deployment, 'staging-test')
                 if dep is None:
                     logging.error(f'There was no deployment named {deployment}')
@@ -85,6 +83,11 @@ def deploy_to_k8s(event, context):
                 #     if container.name == target_container:
                 #         dep.spec.template.spec.containers[i].image = image
                 # logging.info(f'Updating to {image}')
+
+                # TODO: figure out how to re-apply deployment, last I remember
+                #       that I was trying to get the deployment to re-pull the image
+                #       I guess I should follow the reference and patch the
+                #       target_container
                 v1.replace_namespaced_deployment(deployment, 'staging-test', dep)
 
         print('DIFFERENT {}!'.format(name))
