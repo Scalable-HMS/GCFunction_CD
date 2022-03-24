@@ -58,36 +58,29 @@ def deploy_to_k8s(event, context):
         name = base64.b64decode(event['data']).decode('utf-8')
         data = json.loads(base64.b64decode(event['data']).decode('utf-8'))
         if "action" in data and "tag" in data:
-            if data["action"] == "INSERT" and "-staging:latest" in data["tag"]:
+            namespace = False
+            if data["action"] == "INSERT":
+                if "-staging:latest" in data["tag"]:
+                    namespace = "staging"
+                if "-production:latest" in data["tag"]:
+                    namespace = "staging"
 
-                project = 'robust-heaven-344812'
-                zone = 'us-central1-c'
-                cluster = 'cluster-1'
+                if namespace:
+                    project = 'robust-heaven-344812'
+                    zone = 'us-central1-a'
+                    cluster = 'interiit'
 
-                # TODO: Since I can't connect to the new private cluster I can't create 
-                #       a deployment from kubectl, create one and edit this. Also the 
-                #       manifest I was using was valid for my test images, not the new 
-                #       microservices
-                deployment = 'project-staging'
-                # target_container = os.environ.get('CONTAINER')
+                    v1 = get_kube_client(project, zone, cluster)
 
-                v1 = get_kube_client(project, zone, cluster)
+                    dep = v1.read_namespaced_deployment(deployment, namespace)
+                    if dep is None:
+                        logging.error(f'There was no deployment named {deployment}')
+                        return
 
-                # TODO: Failing for the private cluster, worked fine for public
-                dep = v1.read_namespaced_deployment(deployment, 'staging-test')
-                if dep is None:
-                    logging.error(f'There was no deployment named {deployment}')
-                    return
+                    for i, container in enumerate(dep.spec.template.spec.containers):
+                        if container.name in data["tag"]:
+                            dep.spec.template.spec.containers[i].image = data['digest']
 
-                # for i, container in enumerate(dep.spec.template.spec.containers):
-                #     if container.name == target_container:
-                #         dep.spec.template.spec.containers[i].image = image
-                # logging.info(f'Updating to {image}')
-
-                # TODO: figure out how to re-apply deployment, last I remember
-                #       that I was trying to get the deployment to re-pull the image
-                #       I guess I should follow the reference and patch the
-                #       target_container
-                v1.replace_namespaced_deployment(deployment, 'staging-test', dep)
+                    v1.patch_namespaced_deployment(deployment, namespace, dep)
 
         print('DIFFERENT {}!'.format(name))

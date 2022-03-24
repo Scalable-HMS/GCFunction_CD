@@ -22,7 +22,7 @@ spec:
           requests:
             cpu: .1
             memory: 300M
-      imagePullPolicy: Always
+        imagePullPolicy: Always
   selector:
     matchLabels:
       app: project-staging
